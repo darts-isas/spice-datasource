@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: 'spice-datasource'
+    type: 'spice-datasource'
+    access: proxy
+    isDefault: false
+    orgId: 1
+    version: 1
+    editable: true
+    jsonData:
+      kernels:
+      - http://localhost:3031/kernels/spk/de432s.bsp
+      - http://localhost:3031/kernels/lsk/naif0012.tls
+      - http://localhost:3031/kernels/spk/bc_mpo_fcp_00198_20181020_20270407_v02.bsp
+    secureJsonData:
+      apiKey: 'api-key'

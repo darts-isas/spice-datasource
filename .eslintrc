@@ -1,0 +1,7 @@
+{
+  "extends": "./.config/.eslintrc",
+  "rules": {
+    "no-console": "off",
+    "jsdoc/check-alignment": "warn"
+  }
+}
