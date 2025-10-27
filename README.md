@@ -30,5 +30,5 @@ This plugin exposes vectors and other outputs derived from SPICE kernels so that
 ## License
 Licensed under the GNU Lesser General Public License v3.0.
 
-© 2025 ISAS/JAXA and [NAKAHIRA, Satoshi](https://orcid.org/0000-0001-9307-046X).
+© 2025 ISAS/JAXA and [NAKAHIRA, Satoshi](https://orcid.org/0000-0001-9307-046X) and OZAKI, Mei.
 
