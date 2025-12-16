@@ -31,3 +31,7 @@ SPICE は NASA/JPL の Navigation and Ancillary Information Facility (NAIF) が�
 GNU Lesser General Public License v3.0 の下で提供されています。
 
 著作者: ISAS/JAXA and [NAKAHIRA, Satoshi](https://orcid.org/0000-0001-9307-046X) (© 2025)。
+
+## 謝辞
+本ソフトウェアは[株式会社アストロアーツ](https://www.astroarts.co.jp/)の協力のもと開発されました。
+
