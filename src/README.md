@@ -1,4 +1,4 @@
-# DARTS/ISAS SPICE Datasource
+# Jaxa-Spice-DataSource
 
 Data source plugin that gets data from spice
 

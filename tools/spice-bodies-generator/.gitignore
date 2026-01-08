@@ -1,0 +1,10 @@
+# Compiled binary
+spice-bodies-generator
+
+# CSPICE directory (if downloaded locally)
+cspice/
+
+# Generated output files (examples)
+spice-bodies.json
+test-output.json
+*.json.bak
