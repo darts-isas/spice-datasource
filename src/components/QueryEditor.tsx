@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { InlineField, Input, Select, Stack } from '@grafana/ui'
 import { QueryEditorProps, SelectableValue } from '@grafana/data'
 import { SpiceDataSource } from '../datasource'
-import { SpiceDataSourceOptions, SpiceQuery, SpiceBody, SpiceFrame, SpiceOutputFormat, SpiceRangeSource } from '../types'
+import { SpiceDataSourceOptions, SpiceQuery, SpiceBody, SpiceFrame, SpiceOutputFormat, SpiceRangeSource, migrateSpiceParam, isLegacySpkposParam } from '../types'
 
 type Props = QueryEditorProps<SpiceDataSource, SpiceQuery, SpiceDataSourceOptions>
 
@@ -40,9 +40,21 @@ export const QueryEditor = ({ query, onChange, onRunQuery, datasource }: Props) 
   }, [datasource])
 
   // Initialize param with default values AFTER bodies are loaded
+  // Also handles migration from legacy panel configurations
   useEffect(() => {
     // Only initialize if loading is complete and param is not set
     if (isLoading) {
+      return
+    }
+
+    // Check if we need to migrate legacy configuration
+    if (query.param && isLegacySpkposParam(query.param)) {
+      // Migrate legacy format to current format
+      const migratedParam = migrateSpiceParam(query.param)
+      onChange({
+        ...query,
+        param: migratedParam,
+      })
       return
     }
 

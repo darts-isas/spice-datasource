@@ -41,6 +41,21 @@ export type SpiceSpkposParam = SpiceParamBase & {
   timeConfig: SpiceTimeConfig;
 }
 
+// Legacy format from older versions (before 0e47fab)
+// Used for backward compatibility when loading old panel configurations
+export type LegacySpiceSpkposParam = SpiceParamBase & {
+  type: 'spkpos';
+  target: SpiceTarget;
+  observer: SpiceTarget;
+  span: number;
+  unit: SpiceSpanUnit;
+  last?: boolean;
+  // Legacy params don't have these fields:
+  // - frame
+  // - outputFormat
+  // - timeConfig
+}
+
 export type SpiceSpkezrParam = SpiceParamBase & {
   type: 'spkezr';
 }
@@ -50,6 +65,94 @@ export type SpiceParam = SpiceSpkposParam | SpiceSpkezrParam;
 // Type guard for SpiceSpkposParam
 export function isSpiceSpkposParam(param: SpiceParam): param is SpiceSpkposParam {
   return param.type === 'spkpos';
+}
+
+// Type guard for legacy SpiceSpkposParam (old format without timeConfig)
+export function isLegacySpkposParam(param: unknown): param is LegacySpiceSpkposParam {
+  if (typeof param !== 'object' || param === null) {
+    return false;
+  }
+  const p = param as Record<string, unknown>;
+  return (
+    p.type === 'spkpos' &&
+    typeof p.target === 'string' &&
+    typeof p.observer === 'string' &&
+    typeof p.span === 'number' &&
+    typeof p.unit === 'string' &&
+    !('timeConfig' in p) // Key indicator: old format doesn't have timeConfig
+  );
+}
+
+/**
+ * Migrate a legacy SpiceSpkposParam to the current format.
+ * Provides sensible defaults for new fields:
+ * - frame: 'J2000' (most common reference frame)
+ * - outputFormat: 'cartesian' (original behavior)
+ * - rangeSource: 'grafana' (original behavior used Grafana's time range)
+ */
+export function migrateLegacySpkposParam(legacy: LegacySpiceSpkposParam): SpiceSpkposParam {
+  return {
+    type: 'spkpos',
+    target: legacy.target,
+    observer: legacy.observer,
+    frame: 'J2000',           // Default: J2000 is the most commonly used frame
+    outputFormat: 'cartesian', // Default: original behavior was cartesian output
+    timeConfig: {
+      rangeSource: 'grafana',  // Default: original behavior used Grafana range
+      span: legacy.span,
+      unit: legacy.unit,
+      last: legacy.last ?? false, // Default to false if not specified
+    },
+  };
+}
+
+/**
+ * Migrate any SpiceParam to ensure it's in the current format.
+ * Returns the param unchanged if it's already in the current format,
+ * or migrates it from the legacy format if necessary.
+ */
+export function migrateSpiceParam(param: unknown): SpiceParam {
+  if (!param || typeof param !== 'object') {
+    // Return default if param is invalid
+    return DEFAULT_QUERY.param!;
+  }
+
+  const p = param as Record<string, unknown>;
+
+  // Check if it's a legacy spkpos param
+  if (isLegacySpkposParam(param)) {
+    console.info('[SPICE] Migrating legacy panel configuration to new format');
+    return migrateLegacySpkposParam(param);
+  }
+
+  // Check if it's already a valid current-format spkpos param
+  if (p.type === 'spkpos' && 'timeConfig' in p) {
+    // Already in current format, but ensure all required fields exist
+    const spkposParam = param as Partial<SpiceSpkposParam>;
+    return {
+      type: 'spkpos',
+      target: spkposParam.target || 'EARTH',
+      observer: spkposParam.observer || 'SUN',
+      frame: spkposParam.frame || 'J2000',
+      outputFormat: spkposParam.outputFormat || 'cartesian',
+      timeConfig: {
+        rangeSource: spkposParam.timeConfig?.rangeSource || 'grafana',
+        customRange: spkposParam.timeConfig?.customRange,
+        span: spkposParam.timeConfig?.span ?? 1,
+        unit: spkposParam.timeConfig?.unit || 'day',
+        last: spkposParam.timeConfig?.last ?? false,
+      },
+    };
+  }
+
+  // Handle spkezr type
+  if (p.type === 'spkezr') {
+    return { type: 'spkezr' };
+  }
+
+  // Unknown format, return default
+  console.warn('[SPICE] Unknown param format, using default:', param);
+  return DEFAULT_QUERY.param!;
 }
 
 export interface SpiceQuery extends DataQuery {
