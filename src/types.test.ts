@@ -1,4 +1,4 @@
-import { DEFAULT_QUERY, SpiceQuery, SpiceDataSourceOptions, SpiceBody } from './types';
+import { DEFAULT_QUERY, SpiceQuery, SpiceDataSourceOptions, SpiceBody, isLegacySpkposParam, migrateLegacySpkposParam, migrateSpiceParam, LegacySpiceSpkposParam, SpiceSpkposParam } from './types';
 
 describe('Types', () => {
   describe('DEFAULT_QUERY', () => {
@@ -252,6 +252,226 @@ describe('Types', () => {
 
       expect(bodies).toHaveLength(3);
       expect(bodies[0].name).toBe('SUN');
+    });
+  });
+
+  describe('Legacy panel configuration migration', () => {
+    describe('isLegacySpkposParam', () => {
+      it('should return true for legacy spkpos param format', () => {
+        const legacyParam = {
+          type: 'spkpos',
+          target: 'EARTH',
+          observer: 'SUN',
+          span: 1,
+          unit: 'day',
+          last: false,
+        };
+
+        expect(isLegacySpkposParam(legacyParam)).toBe(true);
+      });
+
+      it('should return true for legacy param with optional last as undefined', () => {
+        const legacyParam = {
+          type: 'spkpos',
+          target: 'MARS',
+          observer: 'EARTH',
+          span: 2,
+          unit: 'hour',
+        };
+
+        expect(isLegacySpkposParam(legacyParam)).toBe(true);
+      });
+
+      it('should return false for current spkpos param format (has timeConfig)', () => {
+        const currentParam = {
+          type: 'spkpos',
+          target: 'EARTH',
+          observer: 'SUN',
+          frame: 'J2000',
+          outputFormat: 'cartesian',
+          timeConfig: {
+            rangeSource: 'grafana',
+            span: 1,
+            unit: 'day',
+            last: false,
+          },
+        };
+
+        expect(isLegacySpkposParam(currentParam)).toBe(false);
+      });
+
+      it('should return false for spkezr param', () => {
+        const spkezrParam = {
+          type: 'spkezr',
+        };
+
+        expect(isLegacySpkposParam(spkezrParam)).toBe(false);
+      });
+
+      it('should return false for null or undefined', () => {
+        expect(isLegacySpkposParam(null)).toBe(false);
+        expect(isLegacySpkposParam(undefined)).toBe(false);
+      });
+
+      it('should return false for non-object values', () => {
+        expect(isLegacySpkposParam('string')).toBe(false);
+        expect(isLegacySpkposParam(123)).toBe(false);
+        expect(isLegacySpkposParam(true)).toBe(false);
+      });
+    });
+
+    describe('migrateLegacySpkposParam', () => {
+      it('should migrate legacy param with all fields', () => {
+        const legacyParam: LegacySpiceSpkposParam = {
+          type: 'spkpos',
+          target: 'EARTH',
+          observer: 'SUN',
+          span: 1,
+          unit: 'day',
+          last: true,
+        };
+
+        const migratedParam = migrateLegacySpkposParam(legacyParam);
+
+        expect(migratedParam.type).toBe('spkpos');
+        expect(migratedParam.target).toBe('EARTH');
+        expect(migratedParam.observer).toBe('SUN');
+        expect(migratedParam.frame).toBe('J2000');
+        expect(migratedParam.outputFormat).toBe('cartesian');
+        expect(migratedParam.timeConfig.rangeSource).toBe('grafana');
+        expect(migratedParam.timeConfig.span).toBe(1);
+        expect(migratedParam.timeConfig.unit).toBe('day');
+        expect(migratedParam.timeConfig.last).toBe(true);
+      });
+
+      it('should default last to false when undefined', () => {
+        const legacyParam: LegacySpiceSpkposParam = {
+          type: 'spkpos',
+          target: 'MARS',
+          observer: 'EARTH',
+          span: 2,
+          unit: 'hour',
+        };
+
+        const migratedParam = migrateLegacySpkposParam(legacyParam);
+
+        expect(migratedParam.timeConfig.last).toBe(false);
+      });
+
+      it('should preserve all original time-related values', () => {
+        const legacyParam: LegacySpiceSpkposParam = {
+          type: 'spkpos',
+          target: 'MOON',
+          observer: 'EARTH',
+          span: 30,
+          unit: 'min',
+          last: false,
+        };
+
+        const migratedParam = migrateLegacySpkposParam(legacyParam);
+
+        expect(migratedParam.timeConfig.span).toBe(30);
+        expect(migratedParam.timeConfig.unit).toBe('min');
+      });
+    });
+
+    describe('migrateSpiceParam', () => {
+      it('should migrate legacy spkpos param', () => {
+        const legacyParam = {
+          type: 'spkpos',
+          target: 'EARTH',
+          observer: 'SUN',
+          span: 1,
+          unit: 'day',
+          last: false,
+        };
+
+        const migratedParam = migrateSpiceParam(legacyParam);
+
+        expect(migratedParam.type).toBe('spkpos');
+        if (migratedParam.type === 'spkpos') {
+          expect(migratedParam.frame).toBe('J2000');
+          expect(migratedParam.outputFormat).toBe('cartesian');
+          expect(migratedParam.timeConfig).toBeDefined();
+        }
+      });
+
+      it('should return current format unchanged', () => {
+        const currentParam: SpiceSpkposParam = {
+          type: 'spkpos',
+          target: 'MARS',
+          observer: 'EARTH',
+          frame: 'ECLIPJ2000',
+          outputFormat: 'quaternion',
+          timeConfig: {
+            rangeSource: 'custom',
+            customRange: { start: '2024-01-01T00:00:00Z' },
+            span: 2,
+            unit: 'hour',
+            last: true,
+          },
+        };
+
+        const result = migrateSpiceParam(currentParam);
+
+        expect(result.type).toBe('spkpos');
+        if (result.type === 'spkpos') {
+          expect(result.frame).toBe('ECLIPJ2000');
+          expect(result.outputFormat).toBe('quaternion');
+          expect(result.timeConfig.rangeSource).toBe('custom');
+          expect(result.timeConfig.customRange?.start).toBe('2024-01-01T00:00:00Z');
+        }
+      });
+
+      it('should fill missing fields in current format', () => {
+        const partialParam = {
+          type: 'spkpos',
+          target: 'EARTH',
+          observer: 'SUN',
+          timeConfig: {
+            span: 1,
+            unit: 'day',
+          },
+        };
+
+        const result = migrateSpiceParam(partialParam);
+
+        expect(result.type).toBe('spkpos');
+        if (result.type === 'spkpos') {
+          expect(result.frame).toBe('J2000');
+          expect(result.outputFormat).toBe('cartesian');
+          expect(result.timeConfig.rangeSource).toBe('grafana');
+          expect(result.timeConfig.last).toBe(false);
+        }
+      });
+
+      it('should handle spkezr type', () => {
+        const spkezrParam = { type: 'spkezr' };
+
+        const result = migrateSpiceParam(spkezrParam);
+
+        expect(result.type).toBe('spkezr');
+      });
+
+      it('should return default for null param', () => {
+        const result = migrateSpiceParam(null);
+
+        expect(result).toEqual(DEFAULT_QUERY.param);
+      });
+
+      it('should return default for undefined param', () => {
+        const result = migrateSpiceParam(undefined);
+
+        expect(result).toEqual(DEFAULT_QUERY.param);
+      });
+
+      it('should return default for unknown format', () => {
+        const unknownParam = { type: 'unknown', foo: 'bar' };
+
+        const result = migrateSpiceParam(unknownParam);
+
+        expect(result).toEqual(DEFAULT_QUERY.param);
+      });
     });
   });
 });

@@ -18,7 +18,8 @@ import {
   SpiceBody,
   isSpiceSpkposParam,
   DEFAULT_ENUMERATE_RANGES,
-  SpiceIdRange
+  SpiceIdRange,
+  migrateSpiceParam
 } from './types'
 import { lastValueFrom } from 'rxjs'
 import _ from 'lodash'
@@ -552,12 +553,15 @@ export class SpiceDataSource extends DataSourceApi<SpiceQuery, SpiceDataSourceOp
       const times: number[] = []
       const values: number[][] = [] // Store values as arrays for flexible output formats
 
-      switch (target.param.type) {
+      // Migrate legacy panel configurations to current format
+      const migratedParam = migrateSpiceParam(target.param);
+
+      switch (migratedParam.type) {
         case 'spkpos': {
-          if (!isSpiceSpkposParam(target.param)) {
+          if (!isSpiceSpkposParam(migratedParam)) {
             break;
           }
-          const spkposParam = target.param; // Save for use in closure
+          const spkposParam = migratedParam; // Save for use in closure
           const timeConfig = spkposParam.timeConfig;
 
           // Determine the time range to use
@@ -696,7 +700,7 @@ export class SpiceDataSource extends DataSourceApi<SpiceQuery, SpiceDataSourceOp
 
       // Determine field names based on output format
       let fieldNames: string[];
-      const outputFormat = target.param.type === 'spkpos' ? target.param.outputFormat : 'cartesian';
+      const outputFormat = migratedParam.type === 'spkpos' ? migratedParam.outputFormat : 'cartesian';
 
       switch (outputFormat) {
         case 'quaternion':
