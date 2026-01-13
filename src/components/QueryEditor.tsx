@@ -121,7 +121,8 @@ export const QueryEditor = ({ query, onChange, onRunQuery, datasource }: Props) 
 
   // Use param or create a temporary default for rendering
   // This prevents getting stuck in Loading state if onChange doesn't immediately trigger re-render
-  const effectiveParam = param && param.type ? param : {
+  // Always migrate param to ensure backward compatibility with legacy configurations
+  const effectiveParam = param && param.type ? migrateSpiceParam(param) : {
     type: 'spkpos' as const,
     target: availableBodies.length > 0 ? availableBodies[0].name : 'EARTH',
     observer: availableBodies.length > 1
